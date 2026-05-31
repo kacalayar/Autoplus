@@ -13,7 +13,7 @@
 
 <p align="center">
   <b>ChatGPT / Cursor / Kiro / Grok / Windsurf / Trae 等 13+ AI 平台账号自动注册与管理</b><br/>
-  <b>协议 / 浏览器双模式 · 内置 GoPay 协议付款 ChatGPT Plus · Mac / Windows 桌面版一键启动</b>
+  <b>协议 / 浏览器双模式 · PayPal浏览器注册+内置 GoPay 协议付款 ChatGPT Plus · Mac / Windows 桌面版一键启动</b>
 </p>
 
 > ⚠️ **免责声明**：本项目仅供学习和研究使用，不得用于任何商业用途，也不得用于违反目标平台服务条款（ToS）的行为。使用本项目所产生的一切后果由使用者自行承担。
