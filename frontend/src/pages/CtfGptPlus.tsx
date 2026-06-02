@@ -56,14 +56,6 @@ const DEFAULT_PAYMENT = {
   sms_pool: "",
 };
 
-const BROWSER_MODE_OPTIONS = [
-  { value: "camoufox_headed", label: "Camoufox 前台" },
-  { value: "camoufox_headless", label: "Camoufox 后台" },
-  { value: "bitbrowser_headed", label: "BitBrowser 前台" },
-  { value: "bitbrowser_hidden", label: "BitBrowser 隐藏" },
-  { value: "bitbrowser_headless", label: "BitBrowser 后台" },
-];
-
 const EMPTY_CONFIG_OPTIONS = {
   mailbox_providers: [],
   captcha_providers: [],
@@ -562,23 +554,13 @@ function GeneratePlusModal({
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
               {reuseAccountId
-                ? "复用账号生成 Plus 链接"
-                : "生成 GPT Plus 账户"}
+                ? t("ctfGptPlus.reuseAccountGenerateTitle")
+                : t("ctfGptPlus.generateAccountTitle")}
             </h2>
             <div className="mt-1 text-xs text-[var(--text-muted)]">
-              {reuseAccountId ? (
-                <>
-                  跳过注册，直接用已选账号
-                  {reuseAccountEmail ? (
-                    <span className="ml-1 font-mono text-[var(--text-primary)]">
-                      {reuseAccountEmail}
-                    </span>
-                  ) : null}
-                  {" 生成支付链接并自动 PayPal checkout。"}
-                </>
-              ) : (
-                "自动注册 ChatGPT 账户，成功后生成并执行 Plus 测试支付链路。"
-              )}
+              {reuseAccountId
+                ? t("ctfGptPlus.reuseAccountDesc", { email: reuseAccountEmail || "-" })
+                : t("ctfGptPlus.generateAccountDesc")}
             </div>
           </div>
           <button
@@ -672,7 +654,7 @@ function GeneratePlusModal({
                               disabled={option.disabled}
                             >
                               {option.label}
-                              {option.disabled ? " (不可用)" : ""}
+                              {option.disabled ? ` ${t("ctfGptPlus.optionUnavailable")}` : ""}
                             </option>
                           ))}
                         </select>
@@ -916,10 +898,9 @@ function GeneratePlusModal({
                     </>
                   ) : (
                     <div>
-                      复用账号:{" "}
-                      <span className="font-mono text-[var(--text-primary)]">
-                        {reuseAccountEmail || `#${reuseAccountId}`}
-                      </span>
+                      {t("ctfGptPlus.reuseAccount", {
+                        email: reuseAccountEmail || `#${reuseAccountId}`,
+                      })}
                     </div>
                   )}
                   <div className="mt-1">
@@ -955,7 +936,7 @@ function GeneratePlusModal({
                     <>
                       <Sparkles className="mr-2 h-4 w-4" />
                       {reuseAccountId
-                        ? "生成 Plus 链接并 checkout"
+                        ? t("ctfGptPlus.generateAndCheckout")
                         : t("ctfGptPlus.start")}
                     </>
                   )}
@@ -991,6 +972,16 @@ function GeneratePlusModal({
 
 export default function CtfGptPlus() {
   const { t, language } = useI18n();
+  const browserModeOptions = useMemo(
+    () => [
+      { value: "camoufox_headed", label: t("ctfGptPlus.camoufoxForeground") },
+      { value: "camoufox_headless", label: t("ctfGptPlus.camoufoxBackground") },
+      { value: "bitbrowser_headed", label: t("ctfGptPlus.bitbrowserHeaded") },
+      { value: "bitbrowser_hidden", label: t("ctfGptPlus.bitbrowserHidden") },
+      { value: "bitbrowser_headless", label: t("ctfGptPlus.bitbrowserHeadless") },
+    ],
+    [t],
+  );
   const [platforms, setPlatforms] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -1127,11 +1118,11 @@ export default function CtfGptPlus() {
       .filter((acc) => !isPhoneBound(acc))
       .map((acc) => Number(acc.id));
     if (!phoneLines.trim()) {
-      setError("请先输入手机号和 SMS API");
+      setError(t("plusManager.phoneLinesRequired"));
       return;
     }
     if (ids.length === 0 && fallbackIds.length === 0) {
-      setError("没有可绑定的未绑账户");
+      setError(t("plusManager.noUnboundAccounts"));
       return;
     }
     setBinding(true);
@@ -1175,7 +1166,7 @@ export default function CtfGptPlus() {
     setError("");
     const ids = [...selectedIds];
     if (ids.length === 0) {
-      setError("请先勾选要导出的账户");
+      setError(t("ctfGptPlus.selectExportAccounts"));
       return;
     }
     const pathByFormat: Record<string, string> = {
@@ -1225,7 +1216,7 @@ export default function CtfGptPlus() {
     setError("");
     const ids = [...selectedIds];
     if (ids.length === 0) {
-      setError("请先勾选至少 1 个账户再刷新配额");
+      setError(t("ctfGptPlus.selectQuotaAccounts"));
       return;
     }
     setQuotaBusy(true);
@@ -1242,12 +1233,12 @@ export default function CtfGptPlus() {
       const timedOut = Number(result?.timed_out || 0);
       // eslint-disable-next-line no-console
       console.info(
-        `[refreshQuota] ${updated}/${total} 已刷新, ${timedOut} 超时`,
+        `[refreshQuota] ${updated}/${total} refreshed, ${timedOut} timed out`,
         result,
       );
       if (timedOut > 0) {
         setError(
-          `本批 ${timedOut} 个账户超时未刷新（共 ${total} 个），请稍后再点一次"刷新配额"`,
+          t("ctfGptPlus.quotaTimeout", { timeout: timedOut, total }),
         );
       }
       await load();
@@ -1262,7 +1253,7 @@ export default function CtfGptPlus() {
     setError("");
     const ids = [...selectedIds];
     if (ids.length === 0) {
-      setError("请选择至少 1 个账户进行 Codex OAuth");
+      setError(t("plusManager.selectCodexAccounts"));
       return;
     }
     setOauthBusy(true);
@@ -1348,10 +1339,10 @@ export default function CtfGptPlus() {
               <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
                 <div>
                   <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                    绑定手机号
+                    {t("plusManager.bindPhone")}
                   </h2>
                   <div className="mt-1 text-xs text-[var(--text-muted)]">
-                    已选 {selectedCount} 个账户；未勾选时按当前列表未绑账户顺序绑定。
+                    {t("plusManager.bindPhoneDesc", { count: selectedCount })}
                   </div>
                 </div>
                 <button
@@ -1364,14 +1355,14 @@ export default function CtfGptPlus() {
               <div className="space-y-3 px-6 py-4">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block text-xs font-medium text-[var(--text-secondary)]">
-                    浏览器模式
+                    {t("common.browserMode")}
                     <select
                       value={browserMode}
                       onChange={(event) => setBrowserMode(event.target.value)}
                       disabled={binding}
                       className="control-surface control-surface-compact mt-1 w-full"
                     >
-                      {BROWSER_MODE_OPTIONS.map((option) => (
+                      {browserModeOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
@@ -1380,11 +1371,11 @@ export default function CtfGptPlus() {
                   </label>
                   {browserMode.startsWith("bitbrowser_") && (
                     <div className="rounded border border-[var(--border)] bg-[var(--bg-pane)] px-3 py-2 text-xs text-[var(--text-muted)]">
-                      将自动从“设置 → BitBrowser”的号池取一个最少使用的 profile。
+                      {t("plusManager.bitbrowserPoolHint")}
                     </div>
                   )}
                   <label className="block text-xs font-medium text-[var(--text-secondary)]">
-                    并发数
+                    {t("common.concurrency")}
                     <input
                       type="number"
                       min={1}
@@ -1407,7 +1398,7 @@ export default function CtfGptPlus() {
                   className="control-surface control-surface-compact w-full font-mono text-xs leading-relaxed"
                 />
                 <p className="text-xs text-[var(--text-muted)]">
-                  支持多行；每个手机号最多绑定 3 个 Codex 账户。
+                  {t("plusManager.phoneBindHelp")}
                 </p>
                 {bindTaskId && (
                   <div className="h-[360px] min-h-0 rounded border border-[var(--border)] p-3">
@@ -1430,7 +1421,7 @@ export default function CtfGptPlus() {
                   ) : (
                     <Smartphone className="mr-2 h-4 w-4" />
                   )}
-                  开始绑定
+                  {t("plusManager.startBind")}
                 </Button>
               </div>
             </div>
@@ -1446,7 +1437,7 @@ export default function CtfGptPlus() {
             >
               <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
                 <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                  绑定结果
+                  {t("plusManager.bindResult")}
                 </h2>
                 <button
                   onClick={() => setBindResult(null)}
@@ -1457,17 +1448,19 @@ export default function CtfGptPlus() {
               </div>
               <div className="space-y-3 px-6 py-4 text-sm">
                 <div className="text-[var(--text-secondary)]">
-                  成功 {bindResult.success_count || 0}，失败{" "}
-                  {bindResult.failure_count || 0}
+                  {t("plusManager.successFailure", {
+                    success: bindResult.success_count || 0,
+                    failure: bindResult.failure_count || 0,
+                  })}
                 </div>
                 <div className="overflow-hidden rounded border border-[var(--border)]">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-[var(--bg-pane)] text-[var(--text-muted)]">
                       <tr>
-                        <th className="px-3 py-2">手机号</th>
-                        <th className="px-3 py-2">使用</th>
-                        <th className="px-3 py-2">成功</th>
-                        <th className="px-3 py-2">失败</th>
+                        <th className="px-3 py-2">{t("common.phone")}</th>
+                        <th className="px-3 py-2">{t("plusManager.used")}</th>
+                        <th className="px-3 py-2">{t("plusManager.success")}</th>
+                        <th className="px-3 py-2">{t("plusManager.failed")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1508,7 +1501,7 @@ export default function CtfGptPlus() {
                     Codex OAuth
                   </h2>
                   <div className="mt-1 text-xs text-[var(--text-muted)]">
-                    任务会调用已写好的 OAuth 认证流程，并把日志输出到这里。
+                    {t("plusManager.oauthTaskDesc")}
                   </div>
                 </div>
                 <button
@@ -1545,7 +1538,7 @@ export default function CtfGptPlus() {
                     Codex OAuth
                   </h2>
                   <div className="mt-1 text-xs text-[var(--text-muted)]">
-                    {oauthModal.email || ""} 登录完成后粘贴回调 URL 刷新 token。
+                    {t("plusManager.oauthCallbackDesc", { email: oauthModal.email || "" })}
                   </div>
                 </div>
                 <button
@@ -1562,14 +1555,14 @@ export default function CtfGptPlus() {
                   onClick={() => window.open(oauthModal.auth_url, "_blank", "noopener,noreferrer")}
                 >
                   <ExternalLink className="mr-2 h-4 w-4" />
-                  打开 OAuth 链接
+                  {t("plusManager.openOauthLink")}
                 </Button>
                 <textarea
                   value={oauthCallbackUrl}
                   onChange={(event) => setOauthCallbackUrl(event.target.value)}
                   rows={6}
                   spellCheck={false}
-                  placeholder="粘贴之前 OAuth 认证返回的带 access_token / refresh_token 的回调 URL"
+                  placeholder={t("plusManager.oauthCallbackPlaceholder")}
                   className="control-surface control-surface-compact w-full font-mono text-xs leading-relaxed"
                 />
               </div>
@@ -1592,7 +1585,7 @@ export default function CtfGptPlus() {
                   ) : (
                     <ShieldCheck className="mr-2 h-4 w-4" />
                   )}
-                  刷新 token
+                  {t("plusManager.refreshToken")}
                 </Button>
               </div>
             </div>
@@ -1614,10 +1607,10 @@ export default function CtfGptPlus() {
               <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
                 <div>
                   <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                    Codex OAuth 启动选项
+                    {t("plusManager.oauthStartOptions")}
                   </h2>
                   <div className="mt-1 text-xs text-[var(--text-muted)]">
-                    已选 {selectedIds.size} 个账户。配置浏览器模式和并发数后启动批量 OAuth。
+                    {t("plusManager.oauthStartDesc", { count: selectedIds.size })}
                   </div>
                 </div>
                 <button
@@ -1630,14 +1623,14 @@ export default function CtfGptPlus() {
               <div className="space-y-4 px-6 py-4">
                 <div>
                   <label className="mb-1 block text-xs text-[var(--text-muted)]">
-                    浏览器模式
+                    {t("common.browserMode")}
                   </label>
                   <select
                     value={browserMode}
                     onChange={(event) => setBrowserMode(event.target.value)}
                     className="control-surface control-surface-compact w-full"
                   >
-                    {BROWSER_MODE_OPTIONS.map((option) => (
+                    {browserModeOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
@@ -1646,7 +1639,7 @@ export default function CtfGptPlus() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-[var(--text-muted)]">
-                    并发数
+                    {t("common.concurrency")}
                   </label>
                   <input
                     type="number"
@@ -1683,7 +1676,7 @@ export default function CtfGptPlus() {
                   ) : (
                     <ShieldCheck className="mr-2 h-4 w-4" />
                   )}
-                  启动
+                  {t("common.start")}
                 </Button>
               </div>
             </div>
@@ -1697,7 +1690,7 @@ export default function CtfGptPlus() {
             {t("ctfGptPlus.title")}
           </h1>
           <div className="mt-1 text-sm text-[var(--text-muted)]">
-            已完成 CTF Plus 链路的 ChatGPT 账户会保存在这里。
+            {t("ctfGptPlus.completedDesc")}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -1712,31 +1705,31 @@ export default function CtfGptPlus() {
             size="sm"
             onClick={refreshQuota}
             disabled={quotaBusy || loading || selectedCount === 0}
-            title="刷新已勾选账户的订阅状态（plus / free / expired）；未勾选时禁用"
+            title={t("ctfGptPlus.refreshQuotaTitle")}
           >
             {quotaBusy ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Gauge className="mr-2 h-4 w-4" />
             )}
-            刷新配额
+            {t("plusManager.refreshQuota")}
           </Button>
           <Button size="sm" onClick={() => setShowGenerate(true)}>
             <Sparkles className="mr-2 h-4 w-4" />
-            {selectedIds.size === 1 ? "用已选账号生成 Plus 链接" : "生成 GPT Plus"}
+            {selectedIds.size === 1 ? t("ctfGptPlus.useSelectedGenerate") : t("ctfGptPlus.generatePlus")}
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowBind(true)}>
             <Smartphone className="mr-2 h-4 w-4" />
-            绑定手机号
+            {t("plusManager.bindPhone")}
           </Button>
           <Button
             size="sm"
             variant="outline"
             onClick={() => {
-              setError("");
-              if (selectedIds.size === 0) {
-                setError("请选择至少 1 个账户进行 Codex OAuth");
-                return;
+                setError("");
+                if (selectedIds.size === 0) {
+                setError(t("plusManager.selectCodexAccounts"));
+                  return;
               }
               setOauthConfirmOpen(true);
             }}
@@ -1750,10 +1743,10 @@ export default function CtfGptPlus() {
 
       <div className="grid gap-3 md:grid-cols-4">
         {[
-          ["Plus 账户", String(accounts.length), CheckCircle],
-          ["订阅状态", String(subscribedCount), Sparkles],
-          ["支付链接", String(cashierCount), CreditCard],
-          ["已绑手机号", String(boundCount), Smartphone],
+          [t("ctfGptPlus.plusAccounts"), String(accounts.length), CheckCircle],
+          [t("ctfGptPlus.subscriptionStatus"), String(subscribedCount), Sparkles],
+          [t("ctfGptPlus.paymentLink"), String(cashierCount), CreditCard],
+          [t("ctfGptPlus.boundPhones"), String(boundCount), Smartphone],
         ].map(([label, value, Icon]: any) => (
           <Card key={label} className="px-4 py-3">
             <div className="flex items-center justify-between">
@@ -1774,7 +1767,7 @@ export default function CtfGptPlus() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="搜索邮箱"
+            placeholder={t("common.searchEmail")}
             className="control-surface control-surface-compact w-full lg:w-64"
             style={{ width: "375px" }}
           />
@@ -1786,7 +1779,7 @@ export default function CtfGptPlus() {
                 variant={exportFilter === value ? "default" : "outline"}
                 onClick={() => setExportFilter(value)}
               >
-                {value === "unexported" ? "未导出" : "已导出"}
+                {value === "unexported" ? t("ctfGptPlus.unexported") : t("ctfGptPlus.exported")}
               </Button>
             ))}
             {(["all", "bound", "unbound"] as const).map((value) => (
@@ -1796,7 +1789,7 @@ export default function CtfGptPlus() {
                 variant={bindFilter === value ? "default" : "outline"}
                 onClick={() => setBindFilter(value)}
               >
-                {value === "all" ? "全部" : value === "bound" ? "已绑" : "未绑"}
+                {value === "all" ? t("common.all") : value === "bound" ? t("common.bound") : t("common.unbound")}
               </Button>
             ))}
             <select
@@ -1805,7 +1798,7 @@ export default function CtfGptPlus() {
               className="control-surface control-surface-compact h-8"
               style={{ width: "145px" }}
             >
-              <option value="email-api">Email+邮件api</option>
+              <option value="email-api">Email+Mail API</option>
               <option value="cpa">cpa</option>
               <option value="sub2api">sub2api</option>
               <option value="cockpit">cockpit</option>
@@ -1817,7 +1810,7 @@ export default function CtfGptPlus() {
               disabled={selectedCount === 0}
             >
               <Download className="mr-2 h-4 w-4" />
-              导出
+              {t("ctfGptPlus.export")}
             </Button>
           </div>
         </div>
@@ -1845,7 +1838,7 @@ export default function CtfGptPlus() {
                 <th className="px-3 py-2">Plan</th>
                 <th className="px-3 py-2">Cashier</th>
                 <th className="px-3 py-2">Created</th>
-                <th className="px-3 py-2">操作</th>
+                <th className="px-3 py-2">{t("common.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1865,7 +1858,7 @@ export default function CtfGptPlus() {
                     colSpan={7}
                     className="px-4 py-12 text-center text-sm text-[var(--text-muted)]"
                   >
-                    暂无 Plus 账户
+                    {t("ctfGptPlus.noPlusAccounts")}
                   </td>
                 </tr>
               ) : (
@@ -1895,7 +1888,7 @@ export default function CtfGptPlus() {
                           </span>
                           <button
                             onClick={() => copyText(emailApiLine(acc.email))}
-                            title="复制 Email+邮件API"
+                            title={t("accounts.copyEmailApi")}
                             className="opacity-0 transition-opacity group-hover:opacity-100 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                           >
                             <Copy className="h-3 w-3" />
@@ -1918,14 +1911,14 @@ export default function CtfGptPlus() {
                         {phoneBound ? (
                           <div className="mt-1.5">
                             <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[11px] text-emerald-300">
-                              已绑
+                              {t("common.bound")}
                             </span>
                           </div>
                         ) : null}
                         {exported ? (
                           <div className="mt-1.5">
                             <span className="rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[11px] text-sky-300">
-                              已导出
+                              {t("ctfGptPlus.exported")}
                             </span>
                           </div>
                         ) : null}
@@ -1990,7 +1983,7 @@ export default function CtfGptPlus() {
                             <button
                               onClick={() => copyText(cashierUrl)}
                               className="rounded p-0.5 text-[var(--text-muted)] hover:bg-[var(--bg-pane)] hover:text-[var(--text-primary)]"
-                              title="复制链接"
+                              title={t("accounts.copyLink")}
                             >
                               <Copy className="h-3 w-3" />
                             </button>
@@ -1999,7 +1992,7 @@ export default function CtfGptPlus() {
                               target="_blank"
                               rel="noreferrer"
                               className="rounded p-0.5 text-[var(--text-muted)] hover:bg-[var(--bg-pane)] hover:text-[var(--text-primary)]"
-                              title="打开链接"
+                              title={t("accounts.openCashier")}
                             >
                               <ExternalLink className="h-3 w-3" />
                             </a>
@@ -2027,7 +2020,7 @@ export default function CtfGptPlus() {
                           variant="outline"
                           onClick={() => moveExportStatus(Number(acc.id), !exported)}
                         >
-                          {exported ? "移出已导出" : "移入已导出"}
+                          {exported ? t("ctfGptPlus.removeFromExported") : t("ctfGptPlus.moveToExported")}
                         </Button>
                       </td>
                     </tr>

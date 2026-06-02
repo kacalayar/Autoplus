@@ -4,6 +4,8 @@ import { TaskLogPanel } from "@/components/tasks/TaskLogPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { translateAccountStatus } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n-context";
 import { Loader2, RefreshCw, Sparkles, X } from "lucide-react";
 
 /**
@@ -74,6 +76,7 @@ function getPhone(acc: AccountRow): string {
 }
 
 export default function GoPayGptPlus() {
+  const { t, language } = useI18n();
   const [chatgptAccounts, setChatgptAccounts] = useState<AccountRow[]>([]);
   const [gopayAccounts, setGopayAccounts] = useState<AccountRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -119,13 +122,16 @@ export default function GoPayGptPlus() {
   // 走完 GoPay 网页付款，全程录 HAR + dump 每页 HTML，不跑协议付款。
   const [capturePayment, setCapturePayment] = useState(false);
 
-  const BROWSER_MODE_OPTIONS = [
-    { value: "camoufox_headed", label: "Camoufox 前台" },
-    { value: "camoufox_headless", label: "Camoufox 后台" },
-    { value: "bitbrowser_headed", label: "BitBrowser 前台" },
-    { value: "bitbrowser_hidden", label: "BitBrowser 隐藏" },
-    { value: "bitbrowser_headless", label: "BitBrowser 后台" },
-  ];
+  const browserModeOptions = useMemo(
+    () => [
+      { value: "camoufox_headed", label: t("ctfGptPlus.camoufoxForeground") },
+      { value: "camoufox_headless", label: t("ctfGptPlus.camoufoxBackground") },
+      { value: "bitbrowser_headed", label: t("ctfGptPlus.bitbrowserHeaded") },
+      { value: "bitbrowser_hidden", label: t("ctfGptPlus.bitbrowserHidden") },
+      { value: "bitbrowser_headless", label: t("ctfGptPlus.bitbrowserHeadless") },
+    ],
+    [t],
+  );
   const [taskId, setTaskId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [chatgptSearch, setChatgptSearch] = useState("");
@@ -149,7 +155,7 @@ export default function GoPayGptPlus() {
       );
       setGopayAccounts(gopayRes.items || []);
     } catch (err) {
-      console.error("加载账号失败", err);
+      console.error(t("gopayGptPlus.loadAccountsFailed"), err);
     } finally {
       setLoading(false);
     }
@@ -182,11 +188,11 @@ export default function GoPayGptPlus() {
 
   const start = async () => {
     if (selectedChatgpt.size === 0 && registerCount < 1) {
-      alert("请至少选 1 个 ChatGPT 账号，或设置注册数量 ≥ 1");
+      alert(t("gopayGptPlus.selectChatgptOrRegister"));
       return;
     }
     if (gopaySource === "pool" && !selectedGopayId) {
-      alert("「仅用号池」模式请在下方点选一个 GoPay 账号");
+      alert(t("gopayGptPlus.selectGopayPool"));
       return;
     }
     setStarting(true);
@@ -223,7 +229,7 @@ export default function GoPayGptPlus() {
       });
       setTaskId(res.task_id);
     } catch (err: any) {
-      alert(`启动任务失败: ${err?.message || err}`);
+      alert(t("gopayGptPlus.startTaskFailed", { message: err?.message || String(err) }));
     } finally {
       setStarting(false);
     }
@@ -241,10 +247,10 @@ export default function GoPayGptPlus() {
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-[var(--accent)]" />
             <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">
-              GoPay 生成 GPTPlus
+              {t("gopayGptPlus.title")}
             </h1>
             <Badge variant="secondary" className="ml-2">
-              印尼 GoPay 协议付款
+              {t("gopayGptPlus.subtitle")}
             </Badge>
           </div>
           <div className="flex items-center gap-2">
@@ -260,7 +266,7 @@ export default function GoPayGptPlus() {
               ) : (
                 <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
               )}
-              刷新
+              {t("common.refresh")}
             </Button>
             <Button
               size="sm"
@@ -273,19 +279,21 @@ export default function GoPayGptPlus() {
               ) : (
                 <Sparkles className="mr-1.5 h-3.5 w-3.5" />
               )}
-              开始 ({selectedChatgpt.size > 0 ? selectedChatgpt.size : `注册${registerCount}`})
+              {selectedChatgpt.size > 0
+                ? t("gopayGptPlus.startSelected", { count: selectedChatgpt.size })
+                : t("gopayGptPlus.startRegister", { count: registerCount })}
             </Button>
           </div>
         </div>
         <div className="px-5 py-3 text-xs text-[var(--text-muted)] grid grid-cols-2 md:grid-cols-4 gap-3">
           <div>
-            <label className="block mb-1">浏览器模式</label>
+            <label className="block mb-1">{t("common.browserMode")}</label>
             <select
               value={checkoutMode}
               onChange={(e) => setCheckoutMode(e.target.value)}
               className="control-surface control-surface-compact w-full"
             >
-              {BROWSER_MODE_OPTIONS.map((opt) => (
+              {browserModeOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -293,18 +301,18 @@ export default function GoPayGptPlus() {
             </select>
           </div>
           <div>
-            <label className="block mb-1">国家</label>
+            <label className="block mb-1">{t("gopayGptPlus.country")}</label>
             <select
               value={country}
               onChange={(e) => setCountry(e.target.value)}
               className="control-surface control-surface-compact w-full"
             >
-              <option value="ID">印尼 (ID)</option>
-              <option value="US">美国 (US)</option>
+              <option value="ID">{t("gopayGptPlus.countryID")}</option>
+              <option value="US">{t("gopayGptPlus.countryUS")}</option>
             </select>
           </div>
           <div>
-            <label className="block mb-1">货币</label>
+            <label className="block mb-1">{t("gopayGptPlus.currency")}</label>
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
@@ -315,7 +323,7 @@ export default function GoPayGptPlus() {
             </select>
           </div>
           <div>
-            <label className="block mb-1">并发数</label>
+            <label className="block mb-1">{t("common.concurrency")}</label>
             <input
               type="number"
               min={1}
@@ -326,7 +334,7 @@ export default function GoPayGptPlus() {
             />
           </div>
           <div>
-            <label className="block mb-1">浏览器抓 URL 超时（秒）</label>
+            <label className="block mb-1">{t("gopayGptPlus.grabTimeout")}</label>
             <input
               type="number"
               min={60}
@@ -338,8 +346,7 @@ export default function GoPayGptPlus() {
           {checkoutMode.startsWith("bitbrowser") && (
             <div className="md:col-span-2 flex items-end">
               <p className="text-[11px] text-[var(--text-muted)] leading-tight">
-                BitBrowser 模式自动从「设置 → BitBrowser」的 Profile 池按并发取号，
-                每个线程独占一个 Profile，无需手填 ID。
+                {t("gopayGptPlus.bitbrowserPoolHint")}
               </p>
             </div>
           )}
@@ -352,21 +359,18 @@ export default function GoPayGptPlus() {
                 className="h-4 w-4"
               />
               <span className="text-[var(--text)]">
-                调试抓包模式（抓到 midtrans 后不关浏览器，人工手动付款，录 HAR + 每页 HTML）
+                {t("gopayGptPlus.capturePayment")}
               </span>
             </label>
             {capturePayment && (
               <p className="mt-1 text-[11px] text-[var(--text-muted)] leading-tight">
-                开启后程序不跑协议付款：抓到 midtrans_url 会停在付款页，请手动走完 GoPay 网页付款全流程。
-                产物存到工作目录 <code>_gopay_capture/&lt;时间戳&gt;/</code>（HAR + 各页面 HTML）。
-                完成后在该目录新建一个名为 <code>STOP</code> 的空文件结束抓包。
-                <strong>要拿 HAR 请用 Camoufox 模式</strong>（BitBrowser CDP 录不了 HAR，只有 HTML）。
+                {t("gopayGptPlus.capturePaymentHelp")}
               </p>
             )}
           </div>
           {selectedChatgpt.size === 0 && (
             <div>
-              <label className="block mb-1">注册 ChatGPT 数量（未选账号时）</label>
+              <label className="block mb-1">{t("gopayGptPlus.registerCount")}</label>
               <input
                 type="number"
                 min={1}
@@ -381,7 +385,7 @@ export default function GoPayGptPlus() {
         <div className="px-5 pb-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
           <div>
             <label className="block mb-1 text-[var(--text-muted)]">
-              Midtrans URL 直连（可选，跳过浏览器抓取）
+              {t("gopayGptPlus.midtransOverride")}
             </label>
             <input
               type="text"
@@ -393,7 +397,7 @@ export default function GoPayGptPlus() {
           </div>
           <div className="md:col-span-2">
             <label className="block mb-1 text-[var(--text-muted)]">
-              GoPay 红包链接（可选，余额不足时领取补余额）
+              {t("gopayGptPlus.envelopeUrl")}
             </label>
             <input
               type="text"
@@ -405,7 +409,7 @@ export default function GoPayGptPlus() {
           </div>
           <div>
             <label className="block mb-1 text-[var(--text-muted)]">
-              GoPay 号来源
+              {t("gopayGptPlus.gopaySource")}
             </label>
             <select
               value={gopaySource}
@@ -414,17 +418,17 @@ export default function GoPayGptPlus() {
               }
               className="control-surface control-surface-compact w-full"
             >
-              <option value="auto">自动（先用号池，没号再注册）</option>
-              <option value="pool">仅用号池（没号直接失败）</option>
-              <option value="register">强制注册新号（忽略号池）</option>
+              <option value="auto">{t("gopayGptPlus.sourceAuto")}</option>
+              <option value="pool">{t("gopayGptPlus.sourcePool")}</option>
+              <option value="register">{t("gopayGptPlus.sourceRegister")}</option>
             </select>
             <div className="mt-1 text-xs font-mono text-[var(--accent)]">
-              当前选择 = {gopaySource}
+              {t("gopayGptPlus.currentSelection", { source: gopaySource })}
             </div>
           </div>
           <div>
             <label className="block mb-1 text-[var(--text-muted)]">
-              自动注册 GoPay PIN（6 位）
+              {t("gopayGptPlus.gopayPin")}
             </label>
             <input
               type="text"
@@ -436,7 +440,7 @@ export default function GoPayGptPlus() {
             />
           </div>
           <div>
-            <label className="block mb-1 text-[var(--text-muted)]">接码渠道</label>
+            <label className="block mb-1 text-[var(--text-muted)]">{t("gopayGptPlus.smsProvider")}</label>
             <select
               value={smsProvider}
               onChange={(e) => setSmsProvider(e.target.value)}
@@ -449,7 +453,7 @@ export default function GoPayGptPlus() {
           </div>
           <div>
             <label className="block mb-1 text-[var(--text-muted)]">
-              拿号价格上限（USD）
+              {t("gopayGptPlus.maxPrice")}
             </label>
             <input
               type="text"
@@ -461,7 +465,7 @@ export default function GoPayGptPlus() {
               className="control-surface control-surface-compact w-full text-center font-mono"
             />
             <div className="mt-1 text-xs text-[var(--text-muted)]">
-              Hero-SMS / SMSPool 都按 USD 计价。留空或 0 = 不限价。
+              {t("gopayGptPlus.maxPriceHelp")}
             </div>
           </div>
           {smsProvider === "smspool" && (
@@ -494,13 +498,13 @@ export default function GoPayGptPlus() {
           )}
           <div className="md:col-span-2">
             <label className="block mb-1 text-[var(--text-muted)]">
-              Hero-SMS API key（付款 OTP 用；留空则后端回退环境变量 OPAI_HEROSMS_API_KEY）
+              {t("gopayGptPlus.herosmsApiKey")}
             </label>
             <input
               type="password"
               value={herosmsApiKey}
               onChange={(e) => setHerosmsApiKey(e.target.value)}
-              placeholder="herosms 接码平台 API key"
+              placeholder={t("gopayGptPlus.herosmsPlaceholder")}
               className="control-surface control-surface-compact w-full"
             />
           </div>
@@ -513,15 +517,15 @@ export default function GoPayGptPlus() {
           <div className="px-4 py-3 border-b border-[var(--border)]/50 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-[var(--text-primary)]">
-                ChatGPT 账号
+                {t("gopayGptPlus.chatgptAccounts")}
               </span>
-              <Badge variant="secondary">已选 {selectedChatgpt.size}</Badge>
+              <Badge variant="secondary">{t("common.selectedCount", { count: selectedChatgpt.size })}</Badge>
             </div>
             <input
               type="text"
               value={chatgptSearch}
               onChange={(e) => setChatgptSearch(e.target.value)}
-              placeholder="搜索邮箱"
+              placeholder={t("common.searchEmail")}
               className="control-surface control-surface-compact"
               style={{ width: 200 }}
             />
@@ -531,8 +535,8 @@ export default function GoPayGptPlus() {
               <thead className="sticky top-0 bg-[var(--bg-card)]">
                 <tr className="text-left text-[var(--text-muted)]">
                   <th className="px-3 py-2 w-8"></th>
-                  <th className="px-3 py-2">邮箱</th>
-                  <th className="px-3 py-2">套餐</th>
+                  <th className="px-3 py-2">{t("common.email")}</th>
+                  <th className="px-3 py-2">{t("plusManager.tablePlan")}</th>
                   <th className="px-3 py-2">cashier_url</th>
                 </tr>
               </thead>
@@ -571,7 +575,7 @@ export default function GoPayGptPlus() {
                                 : "secondary"
                           }
                         >
-                          {planState}
+                          {translateAccountStatus(planState, language)}
                         </Badge>
                       </td>
                       <td className="px-3 py-1.5 text-[var(--text-muted)] truncate max-w-[200px]">
@@ -586,7 +590,7 @@ export default function GoPayGptPlus() {
                       colSpan={4}
                       className="px-3 py-6 text-center text-[var(--text-muted)]"
                     >
-                      暂无 ChatGPT 账号
+                      {t("gopayGptPlus.noChatgptAccounts")}
                     </td>
                   </tr>
                 )}
@@ -600,18 +604,21 @@ export default function GoPayGptPlus() {
           <div className="px-4 py-3 border-b border-[var(--border)]/50 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-[var(--text-primary)]">
-                GoPay 账号（余额 ≥ 1 IDR 才可用）
+                {t("gopayGptPlus.gopayAccounts")}
               </span>
               <Badge variant="secondary">
-                可用 {usableGopayAccounts.length}/{gopayAccounts.length}
+                {t("gopayGptPlus.usableCount", {
+                  usable: usableGopayAccounts.length,
+                  total: gopayAccounts.length,
+                })}
               </Badge>
             </div>
             <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
               {gopaySource === "pool"
-                ? "点选下方一个号用于付款"
+                ? t("gopayGptPlus.poolModeHint")
                 : gopaySource === "register"
-                  ? "强制注册新号（忽略下方号池）"
-                  : "自动挑选（先用号池，没号再注册）"}
+                  ? t("gopayGptPlus.registerModeHint")
+                  : t("gopayGptPlus.autoModeHint")}
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -619,9 +626,9 @@ export default function GoPayGptPlus() {
               <thead className="sticky top-0 bg-[var(--bg-card)]">
                 <tr className="text-left text-[var(--text-muted)]">
                   <th className="px-3 py-2 w-8"></th>
-                  <th className="px-3 py-2">手机号</th>
-                  <th className="px-3 py-2">余额 (IDR)</th>
-                  <th className="px-3 py-2">状态</th>
+                  <th className="px-3 py-2">{t("common.phone")}</th>
+                  <th className="px-3 py-2">{t("gopayGptPlus.balanceIdr")}</th>
+                  <th className="px-3 py-2">{t("common.status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -670,7 +677,7 @@ export default function GoPayGptPlus() {
                                 : "secondary"
                           }
                         >
-                          {usable ? "可用" : "无余额"}
+                          {usable ? t("gopayGptPlus.available") : t("gopayGptPlus.noBalance")}
                         </Badge>
                       </td>
                     </tr>
@@ -682,7 +689,7 @@ export default function GoPayGptPlus() {
                       colSpan={4}
                       className="px-3 py-6 text-center text-[var(--text-muted)]"
                     >
-                      暂无 GoPay 账号，请到「账号 / GoPay」注册
+                      {t("gopayGptPlus.noGopayAccounts")}
                     </td>
                   </tr>
                 )}
@@ -704,7 +711,7 @@ export default function GoPayGptPlus() {
           >
             <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
               <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-                GoPay 协议付款执行日志
+                {t("gopayGptPlus.taskLogTitle")}
               </h3>
               <button
                 onClick={closeTask}
@@ -718,7 +725,7 @@ export default function GoPayGptPlus() {
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end">
               <Button variant="outline" size="sm" onClick={closeTask}>
-                关闭
+                {t("common.close")}
               </Button>
             </div>
           </div>

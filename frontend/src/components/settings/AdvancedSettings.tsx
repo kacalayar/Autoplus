@@ -6,6 +6,7 @@ import { useI18n } from '@/lib/i18n-context'
 import { RefreshCw, CheckCircle, XCircle } from 'lucide-react'
 import { getPlatforms, invalidatePlatformsCache } from '@/lib/app-data'
 import type { ChoiceOption } from '@/lib/config-options'
+import { translateChoiceLabel } from '@/lib/i18n'
 import { Save } from 'lucide-react'
 
 function SolverPanel() {
@@ -65,7 +66,7 @@ function SolverPanel() {
 }
 
 function PlatformCapsPanel() {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const [platforms, setPlatforms] = useState<any[]>([])
   const [drafts, setDrafts] = useState<Record<string, any>>({})
   const [saving, setSaving] = useState<Record<string, boolean>>({})
@@ -175,7 +176,7 @@ function PlatformCapsPanel() {
                           onChange={() => toggle(p.name, 'supported_executors', option.value)}
                           className="checkbox-accent"
                         />
-                        {option.label}
+                        {translateChoiceLabel(option.value, option.label, language)}
                       </label>
                     ))}
                   </div>
@@ -194,7 +195,7 @@ function PlatformCapsPanel() {
                           onChange={() => toggle(p.name, 'supported_identity_modes', option.value)}
                           className="checkbox-accent"
                         />
-                        {option.label}
+                        {translateChoiceLabel(option.value, option.label, language)}
                       </label>
                     ))}
                   </div>
@@ -215,7 +216,7 @@ function PlatformCapsPanel() {
                           }
                           className="checkbox-accent"
                         />
-                        {option.label}
+                        {translateChoiceLabel(option.value, option.label, language)}
                       </label>
                     ))}
                   </div>

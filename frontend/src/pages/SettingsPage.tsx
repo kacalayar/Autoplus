@@ -4,7 +4,7 @@ import { Sun, Moon, Monitor } from 'lucide-react'
 import { cn, apiFetch } from '@/lib/utils'
 import { getConfig, getConfigOptions, invalidateConfigCache } from '@/lib/app-data'
 import type { ConfigOptionsResponse } from '@/lib/config-options'
-import { LANGUAGE_OPTIONS, formatDate, type Language } from '@/lib/i18n'
+import { LANGUAGE_OPTIONS, formatDate, translateChoiceLabel, type Language } from '@/lib/i18n'
 import { useI18n } from '@/lib/i18n-context'
 import { Button } from '@/components/ui/button'
 import { Save, RefreshCw, CheckCircle, ExternalLink, Sparkles } from 'lucide-react'
@@ -134,11 +134,16 @@ function GeneralTab({
     }
   }
 
-  const executorOptions = configOptions?.executor_options || []
-  const identityOptions = configOptions?.identity_mode_options || []
+  const localizeChoiceOptions = (options: Array<{ value: string; label: string }> = []) =>
+    options.map((option) => ({
+      ...option,
+      label: translateChoiceLabel(option.value, option.label, language),
+    }))
+  const executorOptions = localizeChoiceOptions(configOptions?.executor_options || [])
+  const identityOptions = localizeChoiceOptions(configOptions?.identity_mode_options || [])
   const oauthOptions = [
     { label: t('settings.oauthFallback'), value: '' },
-    ...((configOptions?.oauth_provider_options || []).filter((o) => o.value !== '')),
+    ...localizeChoiceOptions((configOptions?.oauth_provider_options || []).filter((o) => o.value !== '')),
   ]
 
   return (

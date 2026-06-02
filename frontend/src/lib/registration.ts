@@ -62,7 +62,7 @@ export function buildRegistrationOptions(platformMeta: any, language?: Language)
     options.push({
       key: 'phone',
       label,
-      description: '通过 Hero-SMS 接码注册，无需邮箱',
+      description: translate('registration.phoneDescription', language),
       identityProvider: 'phone',
       oauthProvider: '',
     })

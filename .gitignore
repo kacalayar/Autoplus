@@ -71,3 +71,6 @@ docs/REFACTOR-PLAN.md
 
 # 敏感文件
 *.har
+/.serena/
+/.remember/
+/.tokensave/

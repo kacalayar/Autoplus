@@ -5,7 +5,7 @@ import { getConfig, getConfigOptions, getPlatforms } from '@/lib/app-data'
 import type { ConfigOptionsResponse } from '@/lib/config-options'
 import { getCaptchaStrategyLabel } from '@/lib/config-options'
 import { apiDownload, apiFetch, triggerBrowserDownload } from '@/lib/utils'
-import { formatDateTime, translateAccountStatus } from '@/lib/i18n'
+import { formatDateTime, translate, translateAccountStatus } from '@/lib/i18n'
 import { useI18n } from '@/lib/i18n-context'
 import { buildExecutorOptions, buildRegistrationOptions, hasReusableOAuthBrowser, pickOAuthExecutor } from '@/lib/registration'
 import { TaskLogPanel } from '@/components/tasks/TaskLogPanel'
@@ -61,6 +61,10 @@ function getValidityStatus(acc: any) {
   return getDisplaySummary(acc)?.status?.validity || acc?.validity_status || acc?.overview?.validity_status || 'unknown'
 }
 
+function getCurrentDocumentLanguage() {
+  return typeof document !== 'undefined' && document.documentElement.lang === 'en-US' ? 'en-US' : 'zh-CN'
+}
+
 function getCompactStatusMeta(acc: any) {
   const summary = getDisplaySummary(acc)
   const primaryMetrics = Array.isArray(summary?.primary_metrics) ? summary.primary_metrics : []
@@ -71,15 +75,16 @@ function getCompactStatusMeta(acc: any) {
     }).join(' / ')
   }
   const overview = getAccountOverview(acc)
+  const language = getCurrentDocumentLanguage()
   const parts = [
-    `生命周期:${getLifecycleStatus(acc)}`,
-    `套餐:${getPlanState(acc)}`,
-    `有效:${getValidityStatus(acc)}`,
+    `${translate('accounts.lifecycle', language)}:${translateAccountStatus(getLifecycleStatus(acc), language)}`,
+    `${translate('accounts.plan', language)}:${translateAccountStatus(getPlanState(acc), language)}`,
+    `${translate('accounts.validity', language)}:${translateAccountStatus(getValidityStatus(acc), language)}`,
   ]
   const remainingCredits = overview?.remaining_credits
   const usageTotal = overview?.usage_total
   if (remainingCredits || usageTotal) {
-    parts.push(`额度:${remainingCredits || '-'} / 已用:${usageTotal || '-'}`)
+    parts.push(`${translate('accounts.remainingCredits', language)}:${remainingCredits || '-'} / ${translate('accounts.used', language)}:${usageTotal || '-'}`)
   }
   return parts.join(' / ')
 }
@@ -356,10 +361,10 @@ function RegisterModal({
       // GoPay 专属：手机号接码注册需要 PIN / API key / 代理
       if (platform === 'gopay') {
         if (!gopayApiKey.trim()) {
-          throw new Error('GoPay 注册必须填写 Hero-SMS API key')
+          throw new Error(t('accounts.gopayApiKeyRequired'))
         }
         if (!/^\d{6}$/.test(gopayPin.trim())) {
-          throw new Error('GoPay PIN 必须是 6 位数字')
+          throw new Error(t('accounts.gopayPinInvalid'))
         }
         extra.herosms_api_key = gopayApiKey.trim()
         extra.gopay_pin = gopayPin.trim()
@@ -501,20 +506,20 @@ function RegisterModal({
                 {/* GoPay 专属：手机号接码 + PIN + 代理（platform === 'gopay'） */}
                 {platform === 'gopay' && (
                   <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-hover)] px-4 py-3 space-y-3">
-                    <div className="text-sm font-medium text-[var(--text-primary)]">GoPay 注册参数</div>
+                    <div className="text-sm font-medium text-[var(--text-primary)]">{t('accounts.gopayRegistrationParams')}</div>
                     <div>
-                      <label className="text-xs text-[var(--text-muted)] block mb-1">Hero-SMS API key（必填）</label>
+                      <label className="text-xs text-[var(--text-muted)] block mb-1">{t('accounts.herosmsApiKeyRequired')}</label>
                       <input
                         type="text"
                         value={gopayApiKey}
                         onChange={(e) => setGopayApiKey(e.target.value)}
-                        placeholder="herosms 接码平台 API key"
+                        placeholder={t('gopayGptPlus.herosmsPlaceholder')}
                         className="control-surface control-surface-compact w-full"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs text-[var(--text-muted)] block mb-1">PIN（6 位数字）</label>
+                        <label className="text-xs text-[var(--text-muted)] block mb-1">{t('accounts.pin6')}</label>
                         <input
                           type="text"
                           maxLength={6}
@@ -525,7 +530,7 @@ function RegisterModal({
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-[var(--text-muted)] block mb-1">接码价格上限（USD）</label>
+                        <label className="text-xs text-[var(--text-muted)] block mb-1">{t('accounts.smsPriceLimitUsd')}</label>
                         <input
                           type="text"
                           value={gopayMaxPrice}
@@ -536,7 +541,7 @@ function RegisterModal({
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs text-[var(--text-muted)] block mb-1">注册代理（可选）</label>
+                      <label className="text-xs text-[var(--text-muted)] block mb-1">{t('accounts.registerProxyOptional')}</label>
                       <input
                         type="text"
                         value={gopayProxy}
@@ -546,7 +551,7 @@ function RegisterModal({
                       />
                     </div>
                     <div className="text-xs text-[var(--text-muted)]">
-                      留空时分别回退到环境变量 OPAI_HEROSMS_API_KEY / OPAI_GOPAY_DEFAULT_PIN / OPAI_GOPAY_REGISTER_PROXY / OPAI_HEROSMS_MAX_PRICE_USD。maxPrice 设 0 不限价。
+                      {t('accounts.gopayFallbackHint')}
                     </div>
                   </div>
                 )}
@@ -562,10 +567,10 @@ function RegisterModal({
                     />
                     <div className="flex-1 text-xs text-[var(--text-secondary)]">
                       <div className="text-sm font-medium text-[var(--text-primary)]">
-                        注册成功后自动获取支付链接
+                        {t('accounts.autoPaymentLinkAfterRegister')}
                       </div>
                       <div className="mt-0.5">
-                        生成 Plus 支付链接（不自动 checkout）并保存到账号，后续点"打开支付链接"直接复用。
+                        {t('accounts.autoPaymentLinkDesc')}
                       </div>
                     </div>
                   </label>
@@ -576,7 +581,7 @@ function RegisterModal({
                   <div className="mt-1">{t('accounts.executorSummary')}: <span className="text-[var(--text-primary)]">{selectedExecutor?.label || '-'}</span></div>
                   <div className="mt-1">{t('accounts.verificationSummary')}: <span className="text-[var(--text-primary)]">{getCaptchaStrategyLabel(selection.executorType, configOptions.captcha_policy, configOptions.captcha_providers, language)}</span></div>
                   {selection.identityProvider === 'oauth_browser' && !reusableBrowser && (
-                    <div className="mt-2 text-amber-400">后台浏览器自动依赖 Chrome Profile 或 Chrome CDP，未配置时只允许可视浏览器自动。</div>
+                    <div className="mt-2 text-amber-400">{t('accounts.browserAutomationProfileRequired')}</div>
                   )}
                 </div>
 
@@ -607,9 +612,16 @@ function RegisterModal({
 
 // ── 新增账号弹框 ─────────────────────────────────────────
 function AddModal({ platform, onClose, onDone }: { platform: string; onClose: () => void; onDone: () => void }) {
+  const { t, language } = useI18n()
   const [form, setForm] = useState({ email: '', password: '', lifecycle_status: 'registered', primary_token: '', cashier_url: '' })
   const [saving, setSaving] = useState(false)
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+  const fields = [
+    ['email', t('common.email'), 'text'],
+    ['password', t('common.password'), 'text'],
+    ['primary_token', t('accounts.primaryToken'), 'text'],
+    ['cashier_url', t('accounts.link'), 'text'],
+  ]
 
   const save = async () => {
     setSaving(true)
@@ -627,30 +639,30 @@ function AddModal({ platform, onClose, onDone }: { platform: string; onClose: ()
       <div className="dialog-panel dialog-panel-sm"
            onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
-          <h2 className="text-base font-semibold text-[var(--text-primary)]">手动新增账号</h2>
+          <h2 className="text-base font-semibold text-[var(--text-primary)]">{t('accounts.manualAddTitle')}</h2>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"><X className="h-4 w-4" /></button>
         </div>
         <div className="px-6 py-4 space-y-3">
-          {[['email','邮箱','text'],['password','密码','text'],['primary_token','主凭证','text'],['cashier_url','试用链接','text']].map(([k,l,t]) => (
+          {fields.map(([k,l,type]) => (
             <div key={k}>
               <label className="text-xs text-[var(--text-muted)] block mb-1">{l}</label>
-              <input type={t} value={(form as any)[k]} onChange={e => set(k, e.target.value)}
+              <input type={type} value={(form as any)[k]} onChange={e => set(k, e.target.value)}
                 className="control-surface" />
             </div>
           ))}
           <div>
-            <label className="text-xs text-[var(--text-muted)] block mb-1">生命周期状态</label>
+            <label className="text-xs text-[var(--text-muted)] block mb-1">{t('accounts.lifecycleStatus')}</label>
             <select value={form.lifecycle_status} onChange={e => set('lifecycle_status', e.target.value)}
               className="control-surface appearance-none">
-              <option value="registered">已注册</option>
-              <option value="trial">试用中</option>
-              <option value="subscribed">已订阅</option>
+              <option value="registered">{translateAccountStatus('registered', language)}</option>
+              <option value="trial">{translateAccountStatus('trial', language)}</option>
+              <option value="subscribed">{translateAccountStatus('subscribed', language)}</option>
             </select>
           </div>
         </div>
         <div className="flex gap-3 px-6 py-4 border-t border-[var(--border)]">
-          <Button onClick={save} disabled={saving} className="flex-1">{saving ? '保存中...' : '保存'}</Button>
-          <Button variant="outline" onClick={onClose} className="flex-1">取消</Button>
+          <Button onClick={save} disabled={saving} className="flex-1">{saving ? t('common.saving') : t('common.save')}</Button>
+          <Button variant="outline" onClick={onClose} className="flex-1">{t('common.cancel')}</Button>
         </div>
       </div>
     </div>
@@ -659,7 +671,9 @@ function AddModal({ platform, onClose, onDone }: { platform: string; onClose: ()
 
 function formatResultValue(value: any) {
   if (value === null || value === undefined || value === '') return '-'
-  if (typeof value === 'boolean') return value ? '是' : '否'
+  if (typeof value === 'boolean') {
+    return translate(value ? 'common.yes' : 'common.no', getCurrentDocumentLanguage())
+  }
   return String(value)
 }
 
@@ -720,12 +734,13 @@ function DisplayWarnings({ warnings }: { warnings: any[] }) {
 }
 
 function DisplaySections({ sections }: { sections: any[] }) {
+  const { t } = useI18n()
   if (!sections.length) return null
   return (
     <div className="space-y-3">
       {sections.map((section: any) => (
         <div key={section?.key || section?.title} className="rounded-xl border border-[var(--border)] bg-[var(--bg-hover)] p-3">
-          <div className="text-xs font-semibold text-[var(--text-primary)]">{section?.title || '明细'}</div>
+          <div className="text-xs font-semibold text-[var(--text-primary)]">{section?.title || t('accounts.details')}</div>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             {(Array.isArray(section?.items) ? section.items : []).map((item: any, index: number) => (
               <div key={`${item?.title || 'item'}-${index}`} className="rounded-lg border border-[var(--border)] bg-black/20 p-3">
@@ -748,28 +763,29 @@ function DisplaySections({ sections }: { sections: any[] }) {
 }
 
 function ActionResultHighlights({ payload }: { payload: any }) {
+  const { t } = useI18n()
   if (!payload || typeof payload !== 'object') return null
 
   const stats: Array<{ label: string; value: any }> = []
-  if ('valid' in payload) stats.push({ label: '账号有效', value: payload.valid })
-  if (payload.membership_type) stats.push({ label: '套餐', value: payload.membership_type })
-  if (payload.plan) stats.push({ label: '套餐', value: payload.plan })
+  if ('valid' in payload) stats.push({ label: t('accounts.accountValid'), value: payload.valid })
+  if (payload.membership_type) stats.push({ label: t('accounts.plan'), value: payload.membership_type })
+  if (payload.plan) stats.push({ label: t('accounts.plan'), value: payload.plan })
   if (payload.plan_id) stats.push({ label: 'Plan ID', value: payload.plan_id })
-  if (typeof payload.has_valid_payment_method === 'boolean') stats.push({ label: '已绑卡', value: payload.has_valid_payment_method })
-  if ('trial_eligible' in payload) stats.push({ label: '可试用', value: payload.trial_eligible })
-  if (payload.trial_length_days) stats.push({ label: '试用天数', value: payload.trial_length_days })
-  if (payload.remaining_credits) stats.push({ label: '剩余额度', value: payload.remaining_credits })
-  if (payload.usage_total) stats.push({ label: '已用额度', value: payload.usage_total })
-  if (payload.plan_credits) stats.push({ label: '总额度', value: payload.plan_credits })
-  if (payload.usage_summary?.plan_title) stats.push({ label: 'Kiro 套餐', value: payload.usage_summary.plan_title })
-  if ('days_until_reset' in (payload.usage_summary || {})) stats.push({ label: '重置倒计时', value: payload.usage_summary?.days_until_reset })
-  if (payload.usage_summary?.next_reset_at) stats.push({ label: '下次重置', value: payload.usage_summary.next_reset_at })
-  if ('available' in (payload.portal_session || {})) stats.push({ label: 'Portal 可用', value: payload.portal_session?.available })
-  if (payload.desktop_app_state?.app_name) stats.push({ label: '桌面应用', value: payload.desktop_app_state?.app_name })
-  if ('running' in (payload.desktop_app_state || {})) stats.push({ label: '桌面已打开', value: payload.desktop_app_state?.running })
-  if ('ready' in (payload.desktop_app_state || {})) stats.push({ label: '桌面就绪', value: payload.desktop_app_state?.ready })
-  if (payload.key_prefix) stats.push({ label: 'API Key 前缀', value: payload.key_prefix })
-  if (payload.key_prefix && payload.name) stats.push({ label: 'Key 名称', value: payload.name })
+  if (typeof payload.has_valid_payment_method === 'boolean') stats.push({ label: t('accounts.cardBound'), value: payload.has_valid_payment_method })
+  if ('trial_eligible' in payload) stats.push({ label: t('accounts.trialEligible'), value: payload.trial_eligible })
+  if (payload.trial_length_days) stats.push({ label: t('accounts.trialDays'), value: payload.trial_length_days })
+  if (payload.remaining_credits) stats.push({ label: t('accounts.remainingCredits'), value: payload.remaining_credits })
+  if (payload.usage_total) stats.push({ label: t('accounts.usedCredits'), value: payload.usage_total })
+  if (payload.plan_credits) stats.push({ label: t('accounts.totalCredits'), value: payload.plan_credits })
+  if (payload.usage_summary?.plan_title) stats.push({ label: t('accounts.kiroPlan'), value: payload.usage_summary.plan_title })
+  if ('days_until_reset' in (payload.usage_summary || {})) stats.push({ label: t('accounts.resetCountdown'), value: payload.usage_summary?.days_until_reset })
+  if (payload.usage_summary?.next_reset_at) stats.push({ label: t('accounts.nextReset'), value: payload.usage_summary.next_reset_at })
+  if ('available' in (payload.portal_session || {})) stats.push({ label: t('accounts.portalAvailable'), value: payload.portal_session?.available })
+  if (payload.desktop_app_state?.app_name) stats.push({ label: t('accounts.desktopApp'), value: payload.desktop_app_state?.app_name })
+  if ('running' in (payload.desktop_app_state || {})) stats.push({ label: t('accounts.desktopOpened'), value: payload.desktop_app_state?.running })
+  if ('ready' in (payload.desktop_app_state || {})) stats.push({ label: t('accounts.desktopReady'), value: payload.desktop_app_state?.ready })
+  if (payload.key_prefix) stats.push({ label: t('accounts.apiKeyPrefix'), value: payload.key_prefix })
+  if (payload.key_prefix && payload.name) stats.push({ label: t('accounts.keyName'), value: payload.name })
   if (payload.key_prefix && payload.id) stats.push({ label: 'Key ID', value: payload.id })
 
   const cursorModels = payload.usage_summary?.models && typeof payload.usage_summary.models === 'object'
@@ -802,12 +818,12 @@ function ActionResultHighlights({ payload }: { payload: any }) {
               <div key={model} className="rounded-lg border border-[var(--border)] bg-black/20 p-3">
                 <div className="text-xs font-semibold text-[var(--text-primary)]">{model}</div>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-[var(--text-secondary)]">
-                  <div>请求数: {formatResultValue(info?.num_requests)}</div>
-                  <div>总请求: {formatResultValue(info?.num_requests_total)}</div>
+                  <div>{t('accounts.requests')}: {formatResultValue(info?.num_requests)}</div>
+                  <div>{t('accounts.totalRequests')}: {formatResultValue(info?.num_requests_total)}</div>
                   <div>Token: {formatResultValue(info?.num_tokens)}</div>
-                  <div>剩余请求: {formatResultValue(info?.remaining_requests)}</div>
-                  <div>请求上限: {formatResultValue(info?.max_request_usage)}</div>
-                  <div>Token 上限: {formatResultValue(info?.max_token_usage)}</div>
+                  <div>{t('accounts.remainingRequests')}: {formatResultValue(info?.remaining_requests)}</div>
+                  <div>{t('accounts.requestLimit')}: {formatResultValue(info?.max_request_usage)}</div>
+                  <div>{t('accounts.tokenLimit')}: {formatResultValue(info?.max_token_usage)}</div>
                 </div>
               </div>
             ))}
@@ -823,14 +839,14 @@ function ActionResultHighlights({ payload }: { payload: any }) {
               <div key={`${item.resource_type || item.display_name}-${index}`} className="rounded-lg border border-[var(--border)] bg-black/20 p-3">
                 <div className="text-xs font-semibold text-[var(--text-primary)]">{item.display_name || item.resource_type}</div>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-[var(--text-secondary)]">
-                  <div>已用: {formatResultValue(item.current_usage)}</div>
-                  <div>上限: {formatResultValue(item.usage_limit)}</div>
-                  <div>剩余: {formatResultValue(item.remaining_usage)}</div>
-                  <div>单位: {formatResultValue(item.unit)}</div>
-                  <div>试用状态: {formatResultValue(item.trial_status)}</div>
-                  <div>试用到期: {formatResultValue(item.trial_expiry)}</div>
-                  <div>试用上限: {formatResultValue(item.trial_usage_limit)}</div>
-                  <div>试用剩余: {formatResultValue(item.trial_remaining_usage)}</div>
+                  <div>{t('accounts.used')}: {formatResultValue(item.current_usage)}</div>
+                  <div>{t('accounts.limit')}: {formatResultValue(item.usage_limit)}</div>
+                  <div>{t('accounts.remaining')}: {formatResultValue(item.remaining_usage)}</div>
+                  <div>{t('accounts.unit')}: {formatResultValue(item.unit)}</div>
+                  <div>{t('accounts.trialStatus')}: {formatResultValue(item.trial_status)}</div>
+                  <div>{t('accounts.trialExpiry')}: {formatResultValue(item.trial_expiry)}</div>
+                  <div>{t('accounts.trialLimit')}: {formatResultValue(item.trial_usage_limit)}</div>
+                  <div>{t('accounts.trialRemaining')}: {formatResultValue(item.trial_remaining_usage)}</div>
                 </div>
               </div>
             ))}
@@ -878,6 +894,7 @@ function ActionResultModal({
   payload: any
   onClose: () => void
 }) {
+  const { t } = useI18n()
   const content = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2)
 
   return (
@@ -889,12 +906,12 @@ function ActionResultModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">{title}</h2>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">操作结果</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">{t('accounts.operationResult')}</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(content)}>
               <Copy className="h-4 w-4 mr-1" />
-              复制
+              {t('common.copy')}
             </Button>
             <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
               <X className="h-4 w-4" />
@@ -941,7 +958,7 @@ function ActionTaskModal({
                 Platform Action
               </div>
               <h2 className="truncate text-lg font-semibold text-[var(--text-primary)]">{title}</h2>
-              <p className="mt-1 text-xs text-[var(--text-muted)]">任务状态、错误摘要与实时日志集中展示</p>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">{t('accounts.taskStatusLogDesc')}</p>
             </div>
             <div className="flex items-center gap-2">
               {taskStatus ? (
@@ -982,6 +999,7 @@ function ActionParamsModal({
   onClose: () => void
   onSubmit: (params: Record<string, string>) => void
 }) {
+  const { t } = useI18n()
   const [form, setForm] = useState<Record<string, string>>(initialValues)
 
   useEffect(() => {
@@ -998,8 +1016,8 @@ function ActionParamsModal({
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div>
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">{action?.label || '动作参数'}</h2>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">填写执行该动作所需的参数</p>
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">{action?.label || t('accounts.actionParams')}</h2>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">{t('accounts.actionParamsDesc')}</p>
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
             <X className="h-4 w-4" />
@@ -1052,9 +1070,9 @@ function ActionParamsModal({
         </div>
         <div className="px-6 py-4 border-t border-[var(--border)] flex gap-3">
           <Button onClick={() => onSubmit(form)} disabled={submitting} className="flex-1">
-            {submitting ? '执行中...' : '执行'}
+            {submitting ? t('accounts.executing') : t('accounts.execute')}
           </Button>
-          <Button variant="outline" onClick={onClose} disabled={submitting} className="flex-1">取消</Button>
+          <Button variant="outline" onClick={onClose} disabled={submitting} className="flex-1">{t('common.cancel')}</Button>
         </div>
       </div>
     </div>
@@ -1074,7 +1092,7 @@ function ActionMenu({
   onResult: (title: string, payload: any) => void
   onChanged: () => void
 }) {
-  const { language } = useI18n()
+  const { t, language } = useI18n()
   const [open, setOpen] = useState(false)
   const [actions, setActions] = useState<any[]>([])
   const [running, setRunning] = useState<string | null>(null)
@@ -1215,19 +1233,19 @@ function ActionMenu({
       }
       if (data && typeof data === 'object') {
         if (actionUrl) {
-          setToast({ type: 'success', text: data.message || '支付链接已在新标签打开，链接已复制' })
+          setToast({ type: 'success', text: data.message || t('accounts.paymentLinkOpenedCopied') })
           return
         }
         const detailKeys = Object.keys(data).filter(key => !['message', 'url', 'checkout_url', 'cashier_url'].includes(key))
         if (detailKeys.length > 0) {
           onResult(actionTask.title, data)
         }
-        setToast({ type: 'success', text: data.message || '操作成功' })
+        setToast({ type: 'success', text: data.message || t('accounts.operationSuccess') })
         return
       }
-      setToast({ type: 'success', text: typeof data === 'string' && data ? data : '操作成功' })
+      setToast({ type: 'success', text: typeof data === 'string' && data ? data : t('accounts.operationSuccess') })
     } catch (error: any) {
-      setToast({ type: 'error', text: error?.message || '读取任务结果失败' })
+      setToast({ type: 'error', text: error?.message || t('accounts.readTaskResultFailed') })
     }
   }
 
@@ -1274,11 +1292,11 @@ function ActionMenu({
           }}
         />
       )}
-      <button onClick={onDetail} className="table-action-btn">详情</button>
+      <button onClick={onDetail} className="table-action-btn">{t('accounts.detail')}</button>
       {actions.length > 0 && (
         <div className="relative">
           <button ref={triggerRef} onClick={() => setOpen(o => !o)}
-            className="table-action-btn">更多 ▾</button>
+            className="table-action-btn">{t('accounts.more')} ▾</button>
           {open && typeof document !== 'undefined' && createPortal(
             <div
               ref={menuRef}
@@ -1300,20 +1318,20 @@ function ActionMenu({
                   }}
                   disabled={!!running}
                   className="w-full px-3 py-2 text-left text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-50">
-                  {running === a.id ? '执行中...' : a.label}
+                  {running === a.id ? t('accounts.executing') : a.label}
                 </button>
               ))}
               <div className="my-1 border-t border-[var(--border)]/70" />
               <button
                 onClick={() => {
                   setOpen(false)
-                  if (confirm(`确认删除 ${acc.email}？`)) {
+                  if (confirm(t('accounts.deleteConfirm', { email: acc.email }))) {
                     apiFetch(`/accounts/${acc.id}`, { method: 'DELETE' }).then(onDelete)
                   }
                 }}
                 className="w-full px-3 py-2 text-left text-xs text-[#f0b0b0] transition-colors hover:bg-[rgba(239,68,68,0.08)] hover:text-[#ffd5d5]"
               >
-                删除
+                {t('common.delete')}
               </button>
             </div>,
             document.body,
@@ -1322,10 +1340,10 @@ function ActionMenu({
       )}
       {actions.length === 0 && (
         <button
-          onClick={() => { if (confirm(`确认删除 ${acc.email}？`)) apiFetch(`/accounts/${acc.id}`, { method: 'DELETE' }).then(onDelete) }}
+          onClick={() => { if (confirm(t('accounts.deleteConfirm', { email: acc.email }))) apiFetch(`/accounts/${acc.id}`, { method: 'DELETE' }).then(onDelete) }}
           className="table-action-btn table-action-btn-danger"
         >
-          删除
+          {t('common.delete')}
         </button>
       )}
     </div>
@@ -1334,6 +1352,7 @@ function ActionMenu({
 
 // ── 账号详情弹框 ───────────────────────────────────────────
 function DetailModal({ acc, onClose, onSave }: { acc: any; onClose: () => void; onSave: () => void }) {
+  const { t, language } = useI18n()
   const [form, setForm] = useState({
     lifecycle_status: getLifecycleStatus(acc),
     primary_token: getPrimaryToken(acc),
@@ -1366,7 +1385,7 @@ function DetailModal({ acc, onClose, onSave }: { acc: any; onClose: () => void; 
         {/* ── Sticky Header ── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] shrink-0">
           <div>
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">账号详情</h2>
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">{t('accounts.accountDetails')}</h2>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">{acc.email}</p>
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"><X className="h-4 w-4" /></button>
@@ -1377,7 +1396,7 @@ function DetailModal({ acc, onClose, onSave }: { acc: any; onClose: () => void; 
             <div className="pointer-events-none absolute -right-16 -top-20 h-44 w-44 rounded-full bg-[var(--accent-soft)] blur-3xl" />
             <div className="relative flex flex-wrap items-start justify-between gap-3">
               <div>
-                <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">核心状态</div>
+                <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">{t('accounts.coreStatus')}</div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <Badge variant={STATUS_VARIANT[getDisplayStatus(acc)] || 'secondary'}>{getDisplayStatus(acc)}</Badge>
                   <span className="text-lg font-semibold tracking-[-0.03em] text-[var(--text-primary)]">{acc.plan_name || overview.plan_name || overview.plan || getPlanState(acc)}</span>
@@ -1385,16 +1404,16 @@ function DetailModal({ acc, onClose, onSave }: { acc: any; onClose: () => void; 
               </div>
               <div className="grid grid-cols-2 gap-2 text-right text-[11px] text-[var(--text-muted)] sm:grid-cols-3">
                 <div className="rounded-xl border border-[var(--border-soft)] bg-black/10 px-2.5 py-2">
-                  <div className="uppercase tracking-[0.12em]">生命周期</div>
-                  <div className="mt-1 text-[var(--text-primary)]">{getLifecycleStatus(acc)}</div>
+                  <div className="uppercase tracking-[0.12em]">{t('accounts.lifecycle')}</div>
+                  <div className="mt-1 text-[var(--text-primary)]">{translateAccountStatus(getLifecycleStatus(acc), language)}</div>
                 </div>
                 <div className="rounded-xl border border-[var(--border-soft)] bg-black/10 px-2.5 py-2">
-                  <div className="uppercase tracking-[0.12em]">有效性</div>
-                  <div className="mt-1 text-[var(--text-primary)]">{getValidityStatus(acc)}</div>
+                  <div className="uppercase tracking-[0.12em]">{t('accounts.validity')}</div>
+                  <div className="mt-1 text-[var(--text-primary)]">{translateAccountStatus(getValidityStatus(acc), language)}</div>
                 </div>
                 <div className="rounded-xl border border-[var(--border-soft)] bg-black/10 px-2.5 py-2">
-                  <div className="uppercase tracking-[0.12em]">套餐状态</div>
-                  <div className="mt-1 text-[var(--text-primary)]">{getPlanState(acc)}</div>
+                  <div className="uppercase tracking-[0.12em]">{t('accounts.planStatus')}</div>
+                  <div className="mt-1 text-[var(--text-primary)]">{translateAccountStatus(getPlanState(acc), language)}</div>
                 </div>
               </div>
             </div>
@@ -1431,7 +1450,7 @@ function DetailModal({ acc, onClose, onSave }: { acc: any; onClose: () => void; 
               )}
               {verificationMailbox?.email && (
                 <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-hover)] px-3 py-2 text-xs text-[var(--text-secondary)]">
-                  验证码邮箱: {verificationMailbox.email} · {verificationMailbox.provider || '-'} · ID {verificationMailbox.account_id || '-'}
+                  {t('accounts.verificationMailbox')}: {verificationMailbox.email} · {verificationMailbox.provider || '-'} · ID {verificationMailbox.account_id || '-'}
                 </div>
               )}
             </div>
@@ -1445,7 +1464,7 @@ function DetailModal({ acc, onClose, onSave }: { acc: any; onClose: () => void; 
                     {item.provider_name || item.provider_type || 'provider'}
                   </div>
                   <div className="mt-1 text-xs text-[var(--text-secondary)] break-all">
-                    登录标识: {item.login_identifier || '-'}
+                    {t('accounts.loginIdentifier')}: {item.login_identifier || '-'}
                   </div>
                   {item.credentials && Object.keys(item.credentials).length > 0 && (
                     <div className="mt-2 grid gap-2">
@@ -1489,27 +1508,27 @@ function DetailModal({ acc, onClose, onSave }: { acc: any; onClose: () => void; 
             </div>
           )}
           <div>
-            <label className="text-xs text-[var(--text-muted)] block mb-1">生命周期状态</label>
+            <label className="text-xs text-[var(--text-muted)] block mb-1">{t('accounts.lifecycleStatus')}</label>
             <select value={form.lifecycle_status} onChange={e => setForm(f => ({ ...f, lifecycle_status: e.target.value }))}
               className="control-surface appearance-none">
-              {['registered','trial','subscribed','expired','invalid'].map(s => <option key={s} value={s}>{s}</option>)}
+              {['registered','trial','subscribed','expired','invalid'].map(s => <option key={s} value={s}>{translateAccountStatus(s, language)}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs text-[var(--text-muted)] block mb-1">主凭证</label>
+            <label className="text-xs text-[var(--text-muted)] block mb-1">{t('accounts.primaryToken')}</label>
             <textarea value={form.primary_token} onChange={e => setForm(f => ({ ...f, primary_token: e.target.value }))}
               rows={2} className="control-surface control-surface-mono resize-none" />
           </div>
           <div>
-            <label className="text-xs text-[var(--text-muted)] block mb-1">试用链接</label>
+            <label className="text-xs text-[var(--text-muted)] block mb-1">{t('accounts.link')}</label>
             <textarea value={form.cashier_url} onChange={e => setForm(f => ({ ...f, cashier_url: e.target.value }))}
               rows={2} className="control-surface control-surface-mono resize-none" />
           </div>
         </div>
         {/* ── Sticky Footer ── */}
         <div className="flex gap-3 px-6 py-4 border-t border-[var(--border)] shrink-0">
-          <Button onClick={save} disabled={saving} className="flex-1">{saving ? '保存中...' : '保存'}</Button>
-          <Button variant="outline" onClick={onClose} className="flex-1">取消</Button>
+          <Button onClick={save} disabled={saving} className="flex-1">{saving ? t('common.saving') : t('common.save')}</Button>
+          <Button variant="outline" onClick={onClose} className="flex-1">{t('common.cancel')}</Button>
         </div>
       </div>
     </div>
@@ -1518,6 +1537,7 @@ function DetailModal({ acc, onClose, onSave }: { acc: any; onClose: () => void; 
 
 // ── 导入弹框 ────────────────────────────────────────────────
 function ImportModal({ platform, onClose, onDone }: { platform: string; onClose: () => void; onDone: () => void }) {
+  const { t } = useI18n()
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<string | null>(null)
@@ -1526,20 +1546,20 @@ function ImportModal({ platform, onClose, onDone }: { platform: string; onClose:
     try {
       const lines = text.trim().split('\n').filter(Boolean)
       const res = await apiFetch('/accounts/import', { method: 'POST', body: JSON.stringify({ platform, lines }) })
-      setResult(`导入成功 ${res.created} 个`); onDone()
-    } catch (e: any) { setResult(`失败: ${e.message}`) } finally { setLoading(false) }
+      setResult(t('accounts.importSuccess', { count: res.created })); onDone()
+    } catch (e: any) { setResult(t('accounts.importFailed', { message: e.message })) } finally { setLoading(false) }
   }
   return (
     <div className="dialog-backdrop" onClick={onClose}>
       <div className="dialog-panel dialog-panel-sm p-6" onClick={e => e.stopPropagation()}>
-        <h2 className="text-base font-semibold text-[var(--text-primary)] mb-2">批量导入</h2>
-        <p className="text-xs text-[var(--text-muted)] mb-3">每行格式: <code className="bg-[var(--bg-hover)] px-1 rounded">email password [cashier_url]</code></p>
+        <h2 className="text-base font-semibold text-[var(--text-primary)] mb-2">{t('accounts.importTitle')}</h2>
+        <p className="text-xs text-[var(--text-muted)] mb-3">{t('accounts.importFormat')} <code className="bg-[var(--bg-hover)] px-1 rounded">email password [cashier_url]</code></p>
         <textarea value={text} onChange={e => setText(e.target.value)} rows={8}
           className="control-surface control-surface-mono resize-none mb-3" />
         {result && <p className="text-sm text-emerald-400 mb-3">{result}</p>}
         <div className="flex gap-2">
-          <Button onClick={submit} disabled={loading} className="flex-1">{loading ? '导入中...' : '导入'}</Button>
-          <Button variant="outline" onClick={onClose} className="flex-1">取消</Button>
+          <Button onClick={submit} disabled={loading} className="flex-1">{loading ? t('accounts.importing') : t('accounts.import')}</Button>
+          <Button variant="outline" onClick={onClose} className="flex-1">{t('common.cancel')}</Button>
         </div>
       </div>
     </div>
@@ -1559,6 +1579,7 @@ function ExportMenu({
   searchFilter: string
   selectedIds: number[]
 }) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -1589,19 +1610,19 @@ function ExportMenu({
       triggerBrowserDownload(blob, filename)
       setOpen(false)
     } catch (e: any) {
-      window.alert(e?.message || '导出失败')
+      window.alert(e?.message || t('accounts.exportFailed'))
     } finally {
       setLoading(null)
     }
   }
 
   const options = [
-    { key: 'json', label: '导出 JSON' },
-    { key: 'csv', label: '导出 CSV' },
-    { key: 'any2api', label: '导出 Any2Api' },
-    { key: 'sub2api', label: '导出 Sub2Api' },
-    { key: 'cpa', label: '导出 CPA' },
-    ...(platform === 'kiro' ? [{ key: 'kiro-go', label: '导出 Kiro-Go' }] : []),
+    { key: 'json', label: t('accounts.exportJson') },
+    { key: 'csv', label: t('accounts.exportCsv') },
+    { key: 'any2api', label: t('accounts.exportAny2Api') },
+    { key: 'sub2api', label: t('accounts.exportSub2Api') },
+    { key: 'cpa', label: t('accounts.exportCpa') },
+    ...(platform === 'kiro' ? [{ key: 'kiro-go', label: t('accounts.exportKiroGo') }] : []),
   ]
 
   return (
@@ -1613,12 +1634,12 @@ function ExportMenu({
         disabled={total === 0 || !!loading}
       >
         <Download className="h-4 w-4 mr-1" />
-        {loading ? '导出中...' : hasSelection ? `导出已选(${selectedIds.length})` : '导出'}
+        {loading ? t('accounts.exporting') : hasSelection ? t('accounts.exportSelected', { count: selectedIds.length }) : t('accounts.exportCurrent')}
       </Button>
       {open && (
         <div className="absolute right-0 top-10 z-20 min-w-[148px] rounded-lg border border-[var(--border)] bg-[var(--bg-card)] py-1 shadow-lg">
           <div className="px-3 py-1 text-[11px] text-[var(--text-muted)]">
-            {hasSelection ? `导出 ${selectedIds.length} 个已选账号` : '导出当前筛选结果'}
+            {hasSelection ? t('accounts.exportSelectedDesc', { count: selectedIds.length }) : t('accounts.exportCurrentDesc')}
           </div>
           {options.map(option => (
             <button
@@ -1979,20 +2000,20 @@ export default function Accounts() {
                 <td className="px-3 py-2.5 font-mono text-sm text-[var(--text-primary)] align-top">
                   <div className="flex min-w-0 items-center gap-1.5">
                     <span className="truncate tracking-tight" title={acc.email}>{acc.email}</span>
-                    <button onClick={e => { e.stopPropagation(); copy(emailApiLine(acc.email)) }} title="复制 Email+邮件API" className="text-[var(--text-muted)] hover:text-[var(--text-primary)] opacity-0 group-hover:opacity-100 transition-opacity"><Copy className="h-3 w-3" /></button>
+                    <button onClick={e => { e.stopPropagation(); copy(emailApiLine(acc.email)) }} title={t('accounts.copyEmailApi')} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] opacity-0 group-hover:opacity-100 transition-opacity"><Copy className="h-3 w-3" /></button>
                   </div>
                   {verificationMailbox && (verificationMailbox.email || verificationMailbox.account_id || verificationMailbox.provider) && (
                     <div
                       className="mt-1 truncate text-xs text-[var(--text-muted)] flex items-center gap-1"
-                      title={`验证邮箱: ${verificationMailbox.email || '-'} · ${verificationMailbox.provider || '-'}`}
+                      title={`${t('accounts.verificationMailbox')}: ${verificationMailbox.email || '-'} · ${verificationMailbox.provider || '-'}`}
                     >
                       <svg className="w-3 h-3 opacity-60 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
                       <span className="truncate">{verificationMailbox.email || '-'}</span>
                     </div>
                   )}
                   {overview?.remote_email && overview.remote_email !== acc.email && (
-                    <div className="mt-1 truncate text-xs text-[var(--text-muted)]" title={`远端邮箱: ${overview.remote_email}`}>
-                      远端邮箱: {overview.remote_email}
+                    <div className="mt-1 truncate text-xs text-[var(--text-muted)]" title={`${t('accounts.remoteEmail')}: ${overview.remote_email}`}>
+                      {t('accounts.remoteEmail')}: {overview.remote_email}
                     </div>
                   )}
                   {displayBadges.length > 0 && (
@@ -2056,8 +2077,8 @@ export default function Accounts() {
                 <td className="px-3 py-2.5 align-top">
                   {getCashierUrl(acc) ? (
                     <div className="flex items-center gap-1.5 whitespace-nowrap opacity-70 group-hover:opacity-100 transition-opacity">
-                      <button onClick={e => { e.stopPropagation(); copy(getCashierUrl(acc)) }} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-0.5 rounded hover:bg-[var(--bg-pane)]" title="复制链接"><Copy className="h-3 w-3" /></button>
-                      <a href={getCashierUrl(acc)} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-0.5 rounded hover:bg-[var(--bg-pane)]" title="打开收银台"><ExternalLink className="h-3 w-3" /></a>
+                      <button onClick={e => { e.stopPropagation(); copy(getCashierUrl(acc)) }} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-0.5 rounded hover:bg-[var(--bg-pane)]" title={t('accounts.copyLink')}><Copy className="h-3 w-3" /></button>
+                      <a href={getCashierUrl(acc)} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-0.5 rounded hover:bg-[var(--bg-pane)]" title={t('accounts.openCashier')}><ExternalLink className="h-3 w-3" /></a>
                     </div>
                   ) : <span className="text-[var(--text-muted)]/50 text-xs">-</span>}
                 </td>
